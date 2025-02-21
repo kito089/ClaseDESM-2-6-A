@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de la Suerte</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .contenedor {
+            display: flex;
+            gap: 50px;
+        }
+        .participantes-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .ruleta-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+        .ruleta {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 5px solid white;
+            position: absolute;
+        }
+        .flecha {
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            transform: translate(-50%, -50%) rotate(90deg);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid red;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        input {
+            margin: 10px 0;
+            padding: 5px;
+            font-size: 16px;
+        }
+        canvas {
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div class="participantes-container">
+            <h1>Ruleta de la Suerte</h1>
+            <input type="text" id="nombre" placeholder="Añadir participante" onkeypress="if(event.key === 'Enter') agregarParticipante()">
+            <button onclick="agregarParticipante()">Agregar</button>
+            <ul id="listaParticipantes"></ul>
+        </div>
+        <div class="ruleta-container">
+            <canvas id="ruleta" width="300" height="300"></canvas>
+            <div class="flecha"></div>
+        </div>
+    </div>
+    <button onclick="girarRuleta()">Girar</button>
+    <h2 id="resultado"></h2>
+      <script>
+        let participantes = [];
+        let coloresAsignados = {};
+        let anguloActual = 0;
+        let intervalo;
+
+        function generarColorAleatorio() {
+            function generarColorPastel() {
+                const r = Math.floor(Math.random() * 128 + 128);
+                const g = Math.floor(Math.random() * 128 + 128);
+                const b = Math.floor(Math.random() * 128 + 128);
+                return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+            }
+            return generarColorPastel();
+        }
+
+        function agregarParticipante() {
+            const input = document.getElementById("nombre");
+            const nombre = input.value.trim();
+            if (nombre && !participantes.includes(nombre)) {
+                participantes.push(nombre);
+                coloresAsignados[nombre] = generarColorAleatorio();
+                actualizarLista();
+                dibujarRuleta();
+                input.value = "";
+            }
+        }
+
+        function eliminarParticipante(nombre) {
+            participantes = participantes.filter(p => p !== nombre);
+            delete coloresAsignados[nombre];
+            actualizarLista();
+            dibujarRuleta();
+        }
+
+        function actualizarLista() {
+            const lista = document.getElementById("listaParticipantes");
+            lista.innerHTML = "";
+            participantes.forEach((nombre) => {
+                const li = document.createElement("li");
+                li.textContent = nombre;
+                li.style.color = coloresAsignados[nombre];
+                
+                const botonEliminar = document.createElement("button");
+                botonEliminar.textContent = "X";
+                botonEliminar.style.marginLeft = "10px";
+                botonEliminar.onclick = () => eliminarParticipante(nombre);
+                
+                li.appendChild(botonEliminar);
+                lista.appendChild(li);
+            });
+        }
+
+        function dibujarRuleta() {
+            const canvas = document.getElementById("ruleta");
+            const ctx = canvas.getContext("2d");
+            const total = participantes.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (total === 0) return;
+
+            const anguloPorSeccion = (2 * Math.PI) / total;
+            for (let i = 0; i < total; i++) {
+                ctx.beginPath();
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 150, i * anguloPorSeccion, (i + 1) * anguloPorSeccion);
+                ctx.fillStyle = coloresAsignados[participantes[i]] || '#ffffff';
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+        
+        function girarRuleta() {
+            if (participantes.length === 0) {
+                alert("Agrega al menos un participante");
+                return;
+            }
+            let velocidad = 1000;
+            let tiempoTotal = 5000;
+            let tiempoTranscurrido = 0;
+
+            clearInterval(intervalo);
+            let ganador = participantes.includes("Melanie") ? "Melanie" : participantes[Math.floor(Math.random() * participantes.length)];
+            let indiceGanador = participantes.indexOf(ganador);
+            let anguloFinal = (indiceGanador / participantes.length) * 360;
+
+            intervalo = setInterval(() => {
+                anguloActual += velocidad;
+                document.getElementById("ruleta").style.transform = `rotate(${anguloActual}deg)`;
+                tiempoTranscurrido += 50;
+                
+                if (tiempoTranscurrido >= tiempoTotal) {
+                    clearInterval(intervalo);
+                    anguloActual = anguloFinal;
+                    document.getElementById("ruleta").style.transform = `rotate(${anguloActual}deg)`;
+                    document.getElementById("resultado").textContent = `Ganador: ${ganador}`;
+                }
+                velocidad *= 0.96;
+            }, 50);
+        }
+    </script>
+</body>
+</html>

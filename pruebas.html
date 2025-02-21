@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de la Suerte</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .contenedor {
+            display: flex;
+            align-items: center;
+            gap: 50px;
+        }
+        .participantes-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        #listaParticipantes {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid white;
+            width: 200px;
+        }
+        #listaParticipantes li {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px;
+            border-bottom: 1px solid gray;
+        }
+        #listaParticipantes button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 2px 5px;
+            cursor: pointer;
+        }
+        .ruleta-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            border-radius: 50%;
+        }
+        .flecha {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%) rotate(180deg);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 30px solid red;
+            top: -40px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        input {
+            margin: 10px 0;
+            padding: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="contenedor">
+        <div class="participantes-container">
+            <h1>Ruleta de la Suerte</h1>
+            <input type="text" id="nombre" placeholder="Añadir participante" onkeypress="if(event.key === 'Enter') agregarParticipante()">
+            <button onclick="agregarParticipante()">Agregar</button>
+            <ul id="listaParticipantes"></ul>
+        </div>
+        <div class="ruleta-container">
+            <div class="flecha"></div>
+            <canvas id="ruleta" width="300" height="300"></canvas>
+        </div>
+    </div>
+    <button onclick="girarRuleta()">Girar</button>
+    <h2 id="resultado"></h2>
+
+    <script>
+        let participantes = [];
+        let coloresAsignados = {};
+        let anguloActual = 0;
+        let rangosAngulares = [];
+
+        function generarColorPastel() {
+            const r = Math.floor(Math.random() * 128 + 128);
+            const g = Math.floor(Math.random() * 128 + 128);
+            const b = Math.floor(Math.random() * 128 + 128);
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function agregarParticipante() {
+            const input = document.getElementById("nombre");
+            const nombre = input.value.trim();
+            if (nombre && !participantes.includes(nombre)) {
+                participantes.push(nombre);
+                coloresAsignados[nombre] = generarColorPastel();
+                actualizarLista();
+                dibujarRuleta();
+                input.value = "";
+            }
+        }
+
+        function eliminarParticipante(nombre) {
+            participantes = participantes.filter(p => p !== nombre);
+            delete coloresAsignados[nombre];
+            actualizarLista();
+            dibujarRuleta();
+        }
+
+        function actualizarLista() {
+            const lista = document.getElementById("listaParticipantes");
+            lista.innerHTML = "";
+            participantes.forEach((nombre) => {
+                const li = document.createElement("li");
+                li.textContent = nombre;
+                li.style.color = coloresAsignados[nombre];
+                const btnEliminar = document.createElement("button");
+                btnEliminar.textContent = "X";
+                btnEliminar.onclick = () => eliminarParticipante(nombre);
+                li.appendChild(btnEliminar);
+                lista.appendChild(li);
+            });
+        }
+
+        function dibujarRuleta() {
+            const canvas = document.getElementById("ruleta");
+            const ctx = canvas.getContext("2d");
+            const total = participantes.length;
+            if (total === 0) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const anguloPorSeccion = 360 / total;
+            rangosAngulares = [];
+
+            for (let i = 0; i < total; i++) {
+                const anguloInicio = i * anguloPorSeccion;
+                const anguloFin = (i + 1) * anguloPorSeccion;
+
+                rangosAngulares.push({
+                    inicio: anguloInicio,
+                    fin: anguloFin,
+                    participante: participantes[i]
+                });
+
+                ctx.beginPath();
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 150, ((anguloInicio - 90) * Math.PI) / 180, ((anguloFin - 90) * Math.PI) / 180);
+                ctx.fillStyle = coloresAsignados[participantes[i]];
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            console.log("Rangos de los participantes:");
+            rangosAngulares.forEach((rango, index) => {
+                console.log(`${index + 1}. ${rango.participante} → Rango: ${rango.inicio.toFixed(2)}° - ${rango.fin.toFixed(2)}°`);
+            });
+        }
+
+        function girarRuleta() {
+            if (participantes.length === 0) {
+                alert("Agrega al menos un participante");
+                return;
+            }
+            let vueltas = Math.floor(Math.random() * 10) + 5;
+            let anguloFinal = anguloActual + vueltas * 360 + Math.random() * 360;
+            let duracion = 3000;
+            let inicio = null;
+
+            function animarGiro(timestamp) {
+                if (!inicio) inicio = timestamp;
+                let progreso = timestamp - inicio;
+                let angulo = anguloActual + (anguloFinal - anguloActual) * (progreso / duracion);
+                document.getElementById("ruleta").style.transform = `rotate(${angulo}deg)`;
+                if (progreso < duracion) {
+                    requestAnimationFrame(animarGiro);
+                } else {
+                    let transformMatrix = window.getComputedStyle(document.getElementById("ruleta")).transform;
+                    if (transformMatrix !== "none") {
+                        let values = transformMatrix.split('(')[1].split(')')[0].split(',');
+                        let a = values[0], b = values[1];
+                        let anguloReal = Math.round(Math.atan2(b, a) * (180 / Math.PI));
+                        anguloActual = (anguloReal + 360) % 360;
+                    } else {
+                        anguloActual = anguloFinal % 360;
+                    }
+
+                    determinarGanador();
+                }
+            }
+            requestAnimationFrame(animarGiro);
+        }
+
+        function determinarGanador() {
+            let anguloCorregido = (360 - anguloActual) % 360;
+            let ganador = rangosAngulares.find(rango => anguloCorregido >= rango.inicio && anguloCorregido < rango.fin)?.participante;
+            if (ganador) {
+                document.getElementById("resultado").textContent = `Ganador: ${ganador}`;
+                document.getElementById("resultado").style.color = coloresAsignados[ganador];
+            }
+            console.log(`Ángulo actual: ${anguloActual.toFixed(2)}°`);
+            console.log(`Ángulo corregido: ${anguloCorregido.toFixed(2)}°`);
+        }
+    </script>
+</body>
+</html>
